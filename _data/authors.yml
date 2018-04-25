@@ -1,0 +1,68 @@
+# The primary author of this blog.
+# Must be the same as `author` in `_config.yml`.
+# You can change `author1` to your shortname.
+author1:
+  # Replace <...> with your own (remove the < >)
+  name:              Andrea Biondo
+  email:             <mail@domain.tld>
+
+  # Used at the bottom of each page and at the top of the `about` layout
+  # Markdown enabled, can use multiple paragraphs (enabled by `|`)
+  about:             |
+    I'm Andrea.
+    I'm a BSc student in Computer Science at the [University of Padova](http://www.unipd.it/), where I'm part of the [SPRITZ Security and Privacy Research Group](http://spritz.math.unipd.it/).
+    My main interests are system programming, system security (esp. memory corruption, code reuse and microarchitectural attacks), reverse engineering and code analysis.
+    In other words, throw me some low-level stuff and I'll be happy :)
+
+    I also play CTFs with [spritzers](http://spritz.math.unipd.it/spritzers.html), where I specialize in pwning and reversing.
+
+
+  # This photo will be used in the about section.
+  picture:
+    path:            /assets/img/pic128.jpg
+    # srcset is optional, but can be used to provide higher res versions for retina displays
+    srcset:
+      1x:            /assets/img/pic128.jpg
+      2x:            /assets/img/pic256.jpg
+
+  # Social media icons in sidebar.
+  # Comment/uncommet to show/hide. Rearrange to change the order in which they appear.
+  social:
+    twitter:         anbiondo
+    github:          abiondo
+    # download:        https://github.com/qwtel/hydejack-starter-kit/archive/master.zip
+    email:           mailto:andrea.biondo965@gmail.com
+    # rss:             https://<url>/feed.xml
+    # facebook:        <username>
+    # google:          <number>
+    # vk:              <username>
+    # youtube:         <string_string_string>
+    # vimeo:           <username>
+    # vine:            <username>
+    # spotify:         <user>/<number>
+    # soundcloud:      <username>
+    # lastfm:          <username>
+    # instagram:       <username>
+    # flickr:          <string@string>
+    # 500px:           <username>
+    # dribbble:        <username>
+    # behance:         <username>
+    # deviantart:      <username>
+    # ello:            <username>
+    # twitch:          <username>
+    # steam:           <number>
+    # reddit:          <username>
+    # tumblr:          <username>
+    # pinterest:       <username>
+    # foursquare:      <number>
+    # yelp:            <string>
+    stackoverflow:   6644919
+    # npm:             <username>
+    # hackernews:      <username>
+    # trello:          <firstnamelastname>
+    # linkedin:        <firstname-lastname-string>
+    # xing:            <firstname_lastname_counter>
+    # blogger:         <number>
+    # delicious:       <username>
+    # stumbleupon:     <username>
+    # paypal:          <username>
