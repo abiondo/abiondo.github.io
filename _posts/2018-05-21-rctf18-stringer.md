@@ -2,6 +2,7 @@
 layout: post
 title: RCTF 2018 - stringer
 description: Writeup for challenge "stringer" of RCTF 2018.
+comments: true
 ---
 
 This weekend I was busy playing [RCTF 2018](https://ctftime.org/event/624) with the [mhackeroni](https://ctftime.org/team/57788) team (we qualified for DEFCON last week - super pumped!).
