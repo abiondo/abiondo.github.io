@@ -1,7 +1,7 @@
 ---
 layout: post
 title: IHC CTF 2018 - The Lollipop Service
-description: Writeup for challenge "The Lollipo Service" of IHC CTF 2018.
+description: Writeup for challenge "The Lollipop Service" of IHC CTF 2018.
 comments: true
 ---
 
