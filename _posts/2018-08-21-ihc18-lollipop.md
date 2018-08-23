@@ -186,7 +186,7 @@ unsigned int readInput(char *buf, int size)
 
 This function always consumes the input up to the first newline, reading up to `size-1` bytes into `buf`.
 Note that `buf[i++] = c` keeps the invariant that, at the end of an interation, `buf[i]` is the _next_ character to read.
-Therefore, the final `buf[i + 1] = 0` will place the zero terminator one character ahead of where it should be (i.e., the correct code would be `buf[i] = 0`).
+Therefore, the final `buf[i + 1] = 0` will place the zero terminator one character beyond where it should be (i.e., the correct code would be `buf[i] = 0`).
 This could cause issues if the buffer is not completely zeroed (reason why I'm padding all inputs).
 Most importantly, there's an off-by-one overflow: if the input is `size-1` (or more) bytes long, we'll exit the loop with `i = size-1`, which will result in `buf[size] = 0`.
 However, after examining usages, I was not able to find an exploitable condition.
@@ -316,7 +316,7 @@ We want a 16-byte overlap, so the note length would have to be at least `2*n + m
 For an order, the application allocates 19 bytes + the string length of the note.
 Therefore, the consolidated chunk has to be at least `2*n + m + 67` bytes.
 Simplifying `3*n + 32 >= 2*n + m + 67` yields `n >= m + 35`.
-The smallest allocation we can make is 32 bytes (note up to 19 bytes).
+The smallest allocation we can make is 32 bytes (note up to 13 bytes).
 I decided to fix _m_ to 32, which gives 80 for _n_ (after 16-byte alignment).
 
 Let's introduce a couple primitives for allocation/deallocation:
