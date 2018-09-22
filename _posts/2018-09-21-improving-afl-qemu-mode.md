@@ -1,7 +1,7 @@
 ---
 layout: post
 title: Improving AFL's QEMU mode performance
-description: Block chaining to the rescue.
+description: Block chaining to the rescue. **UPDATED 2018-09-22**
 comments: true
 ---
 
@@ -9,6 +9,8 @@ I'm a big fan of [American Fuzzy Lop](http://lcamtuf.coredump.cx/afl/).
 It's a robust and effective coverage-guided fuzzer, and it supports a QEMU mode to fuzz closed-source binaries.
 QEMU mode, however, comes with a significant performance price.
 Can we make it better?
+
+**UPDATE 2018-09-22**: thanks to [@domenuk](https://twitter.com/domenuk) for [suggesting](https://twitter.com/domenuk/status/1043168787518898177) to cache the chains in the parent. Post has been updated accordingly, we're now at 3x-4x speedup.
 
 # QEMU's block translation
 
@@ -29,7 +31,7 @@ New host architecture?
 Add a backend.
 Easy.
 The translation is done on-the-fly during emulation at the basic block level.
-Since translation is expensive, translated blocks (TBs) are saved in the _TCG cache_, from which they can be fetched if they are executed again.
+Since translation is expensive, translation blocks (TBs) are saved in the _TCG cache_, from which they can be fetched if they are executed again.
 
 When you're doing this kind of translation, you have to keep in mind that the memory layout of the translated code does not necessarily match the original code.
 Therefore, you have to fix up references to memory addresses.
@@ -52,7 +54,6 @@ The `qemu_mode/patches/afl-qemu-cpu-inl.h` file contains the actual implementati
 The forkserver is AFL's way to optimize out initialization overhead.
 Since the forkserver starts before the program is executed, children would always have an empty TCG cache.
 Therefore, there's a mechanism by which children inform the parent of newly translated blocks, so that the parent can translate the block in its own cache for future children.
-The forkserver is not really relevant for this post, so let's stop here.
 
 The instrumentation hooks into `accel/tcg/cpu-exec.c` in the QEMU core.
 Specifically, the patch inserts a snippet into `cpu_tb_exec`, which is called every time a TB is executed by the emulator.
@@ -179,10 +180,45 @@ tcg_ctx.cpu = NULL;
 
 Now we can remove the `setenv("QEMU_LOG", "nochain", 1)` from AFL (`afl-analyze.c`, `afl-fuzz.c`, `afl-showmap.c`, `afl-tmin.c`) and test it out.
 
+# Chain caching
+
+As I previously mentioned, AFL uses a forkserver strategy to reduce initialization overhead.
+Basically, the forkserver starts after initialization, and forks off children at AFL's request.
+Each children executes a test case.
+This approach eliminates QEMU's initialization overhead, but would cause extreme TCG cache thrashing because the parent, after initialization, has an empty TCG cache, thus all children would start with an empty cache.
+To avoid this, AFL's patches establish a pipe between parent and child, which the child uses to notify the parent of every new basic block translation.
+The parent then translates the block in its own cache, so that it will be available to future children (this translates each block twice, I don't think that doing complex serialization to only translate once is worth it).
+
+To do this, AFL patches `tb_find` in `accel/tcg/cpu-exec.c` by inserting a call to `afl_request_tsl` after `tb_gen_code`, which translates the block.
+The `afl_request_tsl` function sends the information needed to identify the TB (address, CS base, flags) to the parent, which is spinning in `afl_wait_tsl`.
+Finally, `afl_wait_tsl` calls `tb_gen_code` to translate the block in the parent's cache.
+
+The `tb_find` function receives a couple of parameters, `last_tb` and `tb_exit`, which identify respectively the previous TB and the _jump slot_, of the previous TB's last instruction, that brought us here.
+After translating the requested block if it hasn't been done already, `tb_find` performs chaining by patching the previous block's jump slot:
+
+```c
+/* See if we can patch the calling TB. */
+if (last_tb && !qemu_loglevel_mask(CPU_LOG_TB_NOCHAIN)) {
+    if (!have_tb_lock) {
+        tb_lock();
+        have_tb_lock = true;
+    }
+    if (!tb->invalid) {
+        tb_add_jump(last_tb, tb_exit, tb);
+    }
+}
+```
+
+However, `afl_wait_tsl` doesn't do this, which means it won't cache the chains between TBs.
+I implemented caching of the patched jump slots, where I basically notify the parent when we reach the `tb_add_jump` block.
+It takes a bit of refactoring, I'll leave out the details for brevity.
+You can check out the patches below.
+
 # Results
 
-I did not have time to perform very thorough testing, but I'm measuring speeds between 1.5x and 3x on 32-bit and 64-bit x86 targets.
-That's a 50-200% speedup!
+I did not have time to perform very thorough testing, however I'm measuring consistent results on 32-bit and 64-bit x86 targets (on a 64-bit x86 host).
+The first version, without chain caching, was clocking 1.5x to 3x of the original speed.
+With chain caching, I'm getting 3x to 4x.
 Path count and `afl-showmap` seem to confirm that it's indeed tracing correctly, so I'm pretty confident it is working as intended.
 
 # Try it out!
