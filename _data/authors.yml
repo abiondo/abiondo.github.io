@@ -10,7 +10,7 @@ author1:
   # Markdown enabled, can use multiple paragraphs (enabled by `|`)
   about:             |
     I'm Andrea.
-    I'm a BSc student in Computer Science at the [University of Padova](http://www.unipd.it/), where I'm part of the [SPRITZ Security and Privacy Research Group](http://spritz.math.unipd.it/).
+    I'm a MSc student in Computer Science at the [University of Padova](http://www.unipd.it/), where I'm part of the [SPRITZ Security and Privacy Research Group](http://spritz.math.unipd.it/).
     My main interests are system programming, system security (esp. memory corruption, code reuse and microarchitectural attacks), reverse engineering and code analysis.
     In other words, throw me some low-level stuff and I'll be happy :)
 
