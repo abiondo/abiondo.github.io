@@ -50,9 +50,9 @@ Now comes the crucial part: the mixed result is split into 8 6-bit pieces, which
 The S-boxes provide confusion, and in DES they have been carefully selected to hinder cryptanalysis.
 The 8 4-bit outputs are recombined into a 32-bit word, which is transformed through a permutation P (providing diffusion) to get the final output.
 
-Notice that, if the S-boxes were linear functions, then DES would be linear.
+Notice that, if the S-boxes were linear (or affine) functions, then DES would be an affine map.
 To see why, consider $$n$$-bit words as vectors in $$GF(2)^n$$.
-Then unkeyed expansions and permutations are just pre-multiplications by constant matrices, and XOR is addition, so their composition is linear.
+Then unkeyed expansions and permutations are just pre-multiplications by constant matrices, and XOR is addition, so their composition is an affine transformation.
 The only functions we haven't considered are the S-boxes, so the non-linearity of the cipher must depend solely on the non-linearity of the S-boxes.
 
 ### The challenge
@@ -77,10 +77,10 @@ Specifically, the modified S-boxes map XABCDY to ABCD, i.e., they just drop bits
 This is again a linear operation (think of it as a permutation).
 Actually, there's an even stronger property: by observing the structure of the expansion function, one quickly realises that $$S \circ E$$ is the identity function.
 
-By the final argument in the previous section, the whole cipher is linear because the S-boxes are linear.
+By the final argument in the previous section, the whole cipher is an affine map because the S-boxes are linear.
 Then, in $$GF(2)^{64}$$, we can write decryption of the 64x1 bit vector $$x$$ as $$G(x) = Ax \oplus b$$ for some 64x64 matrix $$A$$ and some 64x1 vector $$b$$.
 Intuitively, $$A$$ represents the permutation components of the cipher, and $$b$$ represents the XOR components.
-Since the cipher is linear, XORing the ciphertext with some $$y$$ should produce a simple effect on the plaintext.
+XORing the ciphertext with some $$y$$ should produce a simple effect on the plaintext.
 Let's check:
 
 $$
@@ -97,7 +97,7 @@ But $$A$$ is the permutation component, and DES permutations are unkeyed: the ke
 Therefore, if we fix $$y$$, $$Ay$$ is constant for any key.
 We can recover the constant by encrypting (with any key) a known plaintext, XORing the ciphertext with $$y$$, decrypting it and XORing the resulting plaintext with the original one.
 
-For example, let's pick $$y$$ as 0xFFFF...FFFF (64 binary ones).
+Now let's pick $$y$$ as 0xFFFF...FFFF (64 binary ones).
 Then XORing with $$y$$ is equivalent to a bitwise negation.
 Therefore, the oracle will agree to decrypt the flag ciphertext XORed with $$y$$, as all bits are different.
 We get the plaintext flag XORed with a known constant, so we can recover the original plaintext: `Sb0xd3s!` (flag is `X-MAS{Sb0xd3s!}`).
